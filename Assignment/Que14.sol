@@ -9,8 +9,8 @@ contract Freelancing {
         PENDING,
         ACCEPTED,
         COMPLETED,
-        APPROVED,
-        CLOSED
+        APPROVED
+        //CLOSED
     }
 
     struct Project {
@@ -24,6 +24,18 @@ contract Freelancing {
 
     mapping(uint256 => Project) projects;
     uint256 projectCount = 0;
+
+
+    modifier validProject(uint _i){
+        require(_i < projectCount, "Invalid project !");
+        _;
+    }
+    
+    modifier validUser(){
+        require(msg.sender != address(0), "invalid user !");
+        _;
+    }
+
 
     function postJob(
         string memory title,
@@ -57,7 +69,7 @@ contract Freelancing {
 
     function getJob(uint256 ind)
         public
-        view
+        view validProject(ind)
         returns (
             Status stutus,
             string memory title,
@@ -65,34 +77,29 @@ contract Freelancing {
             uint256 amount,
             address owner,
             address freelancer
-        )
-    {
-        require(ind < projectCount, "Invalid project !");
+        )  {
         Project memory p = projects[ind];
         return (p.stutus, p.title, p.desc, p.amount, p.owner, p.freelancer);
     }
 
-    function acceptJob(uint256 ind) public {
-        require(msg.sender != address(0), "invalid user !");
-        require(ind < projectCount, "Invalid project !");
+    function acceptJob(uint256 ind) public validProject(ind) validUser(){
+        require(msg.sender != projects[ind].owner, "should not owner !");
 
         projects[ind].stutus = Status.ACCEPTED;
         projects[ind].freelancer = payable(msg.sender);
     }
 
-    function completeJob(uint256 ind) public {
-        require(msg.sender != address(0), "invalid user !");
-        require(ind < projectCount, "Invalid project !");
-
+    function completeJob(uint256 ind) public  validProject(ind) {
+        require(msg.sender == projects[ind].owner, "should be owner !");
         projects[ind].stutus = Status.COMPLETED;
     }
 
-    function approveJob(uint256 ind) public payable {
-        require(msg.sender != address(0), "invalid user !");
+    function approveJob(uint256 ind) public payable validProject(ind) validUser() {
         require(msg.sender == projects[ind].owner, "only owner can approve !");
-        require(ind < projectCount, "Invalid project !");
+        require(Status.COMPLETED == projects[ind].stutus, "Project is not completed yet !");
 
         projects[ind].stutus = Status.APPROVED;
         projects[ind].freelancer.transfer(projects[ind].amount);
     }
+    
 }
